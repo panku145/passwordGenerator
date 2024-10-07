@@ -1,0 +1,55 @@
+name: CI/CD for Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      # Securely log into Docker Hub
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # Build Docker Image (with build context provided)
+      - name: Build Docker Image
+        run: docker build -t acstraining/pg -f ./Dockerfile .
+
+      # Publish Image to Docker Hub
+      - name: Publish Image to Docker Hub
+        run: docker push acstraining/pg:latest
+
+      # Cleanup unused Docker images and volumes
+      - name: Cleanup Docker
+        run: |
+          # Remove dangling images
+          docker image prune -f
+          # Remove unused volumes
+          docker volume prune -f
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      # Pull the correct image from Docker Hub
+      - name: Pull image from Docker Hub
+        run: docker pull acstraining/pg:latest
+
+      # Remove existing container if it exists
+      - name: Remove existing container
+        run: |
+          if [ "$(docker ps -aq -f name=reactjs-app-container)" ]; then
+            docker rm -f reactjs-app-container
+          fi
+
+      # Run Docker Container with proper environment variable handling
+      - name: Run Docker Container
+        run: |
+          docker run -d -p 3000:80 --name pg-app-container acstraining/pg:latest

@@ -8,7 +8,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Clean up node_modules to save space
+# Clean up node_modules to save storage
 RUN rm -rf node_modules
 
 FROM nginx:1.23-alpine
